@@ -4,10 +4,8 @@ import * as THREE from 'three';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// // add document listener for user input
-// document.addEventListener('DOMContentLoaded', function)(){
-//   const widthInput = document.getElementById('width_input');
-// }
+import * as dat from 'dat.gui'
+import { sortInstancedMesh } from 'three/examples/jsm/utils/SceneUtils.js';
 
 const scene = new THREE.Scene();
 
@@ -23,92 +21,56 @@ camera.position.setZ(30);
 
 renderer.render(scene, camera);
 
-const geometry = new THREE.TorusGeometry(10, 3, 16, 100)
-const material = new THREE.MeshStandardMaterial( { color: 0xFF6347} );
-const torus = new THREE.Mesh( geometry, material );
-
-// scene.add(torus)
-
-const pointLight = new THREE.PointLight(0xffffff);
-pointLight.position.set(5, 5, 5)
-
-const ambientLight = new THREE.AmbientLight(0xffffff);
-scene.add(pointLight, ambientLight)
-
-const lightHelper = new THREE.PointLightHelper(pointLight);
-const gridHelper = new THREE.GridHelper(200,50);
-scene.add(lightHelper, gridHelper)
-
 const controls = new OrbitControls(camera, renderer.domElement);
 
+//add grid
+scene.add(new THREE.GridHelper(100,20))
+
+//textures
 const gardenTexture = new THREE.TextureLoader().load('garden.jpg');
 scene.background = gardenTexture;
-
 const brickTexture = new THREE.TextureLoader().load('brick.jpg');
-const wall1 = new THREE.Mesh(
-  new THREE.BoxGeometry(10,3,1),
-  new THREE.MeshBasicMaterial({map: brickTexture})
-);
+const brickMaterial = new THREE.MeshBasicMaterial({map: brickTexture});
 
-wall1.position.set(0,0,0)
+//width geometries
+const wallWidth1Geom = new THREE.BoxGeometry(10, 3, 1)
+const wallWidth1 = new THREE.Mesh(wallWidth1Geom, brickMaterial)
 
-const wall2 = new THREE.Mesh(
-  new THREE.BoxGeometry(1,3,8),
-  new THREE.MeshBasicMaterial({map: brickTexture})
-);
+const wallWidth2Geom = new THREE.BoxGeometry(10, 3, 1)
+const wallWidth2 = new THREE.Mesh(wallWidth2Geom, brickMaterial)
 
-// Positioning wall2 to be at right angle to wall1
-wall2.position.x = -1 + wall1.geometry.parameters.width / 2 + wall2.geometry.parameters.width / 2;
-wall2.position.z = (0.5*wall1.geometry.parameters.depth) + wall2.geometry.parameters.depth / 2; // Half of wall2's depth to align at center
+wallWidth1.position.set(0,0,0)
+wallWidth2.position.set(0,0,10)
 
-//create wall 3 to emulate wall 1 but be otherside of wall 2
-const wall3 = new THREE.Mesh(
-  new THREE.BoxGeometry(wall1.geometry.parameters.width,wall1.geometry.parameters.height,wall1.geometry.parameters.depth),
-  new THREE.MeshBasicMaterial({map: brickTexture})
-);
+scene.add(wallWidth1, wallWidth2)
 
-wall3.position.x = wall1.position.x;
-wall3.position.y = wall1.position.y;
-wall3.position.z = wall2.geometry.parameters.width + wall2.geometry.parameters.depth
+//depth geometries
+const wallDepth1Geom = new THREE.BoxGeometry(1, 3, 10)
+const wallDepth1 = new THREE.Mesh(wallDepth1Geom, brickMaterial)
 
-//create wall 4 to emulate wall 4 but be otherside of wall 1 and wall 3
-const wall4 = new THREE.Mesh(
-  new THREE.BoxGeometry(wall2.geometry.parameters.width,wall2.geometry.parameters.height,wall2.geometry.parameters.depth),
-  new THREE.MeshBasicMaterial({map: brickTexture})
-);
+scene.add(wallDepth1)
 
-wall4.position.x = 1 + wall2.position.x - wall1.geometry.parameters.width
-wall4.position.y = wall2.position.y
-wall4.position.z = wall2.position.z
+//initialiseL
 
-//add roof
-const roof_overhang = 0.5;
-const roof_thickness = 1;
+const gui = new dat.GUI()
 
-const blackTexture = new THREE.TextureLoader().load('black.jpg');
+//changing geometry
 
-const roof = new THREE.Mesh(
-  new THREE.BoxGeometry(wall1.geometry.parameters.width + 2*roof_overhang, roof_thickness, wall2.geometry.parameters.depth + 2*wall1.geometry.parameters.depth + 2*roof_overhang),
-  new THREE.MeshBasicMaterial({map: blackTexture})
-);
-
-roof.position.x = wall1.position.x
-roof.position.z = wall2.position.z
-roof.position.y = roof.geometry.parameters.height / 2 + wall1.geometry.parameters.height / 2
-
-
-scene.add(wall1, wall2, wall3, wall4, roof);
+gui.add(wallWidth1.scale, "x", 0, 2).name('Scale Shed Width')
+gui.add(wallWidth1.scale, "y", 0, 2).name('Scale Shed Height')
+gui.add(wallWidth1.scale, "y", 0, 2).name('Scale Shed Depth')
 
 function animate(){
   requestAnimationFrame(animate);
 
-  torus.rotation.x += 0.01;
-  torus.rotation.y += 0.005;
-  torus.rotation.z += 0.01;
-
   controls.update();
+  
+  wallWidth2.scale.x = wallWidth1.scale.x;
+  wallDepth1.position.x = (wallWidth1.geometry.parameters.width / 2) * wallWidth1.scale.x + wallDepth1.geometry.parameters.width/2
+  wallDepth1.position.z = (wallWidth2.position.z / 2) + wallWidth1.geometry.parameters.depth/2
 
   renderer.render(scene, camera);
+
 }
 
 animate()
