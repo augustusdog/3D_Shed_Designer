@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import * as dat from 'dat.gui'
 import { sortInstancedMesh } from 'three/examples/jsm/utils/SceneUtils.js';
-import { depth } from 'three/webgpu';
+import { depth, ExtrudeGeometry, Triangle, Vector3 } from 'three/webgpu';
 
 const scene = new THREE.Scene();
 
@@ -53,6 +53,44 @@ wallDepth2.position.set(0,0,0)
 
 scene.add(wallDepth1, wallDepth2)
 
+//add roof - triangular prism
+
+const geometry = new THREE.BufferGeometry();
+
+const vertices = new Float32Array([
+    // Front triangle
+    -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+    wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+    0, wallWidth1.geometry.parameters.height+ 2, -1*(wallDepth2.geometry.parameters.depth / 2),
+    // Back triangle
+    -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+    wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+    0.5, wallWidth1.geometry.parameters.height+ 2, wallDepth2.geometry.parameters.depth / 2,
+]);
+
+// Indices for drawing order
+const indices = [
+    0, 1, 2,   // Front face
+    3, 5, 4,   // Back face
+    0, 3, 1,   // Bottom face
+    1, 3, 4,
+    1, 4, 2,   // Right side
+    2, 4, 5,
+    2, 5, 0,   // Left side
+    0, 5, 3    // Connect back to front
+];
+
+geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+geometry.setIndex(indices);
+geometry.computeVertexNormals();
+
+// Follow with material and mesh creation
+const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const prism = new THREE.Mesh(geometry, material);
+
+scene.add(prism);
+
+
 //initialiseL
 
 const gui = new dat.GUI()
@@ -81,12 +119,11 @@ function animate(){
   //scaling depth
   wallDepth2.scale.z = wallDepth1.scale.z
   wallDepth1.position.z = wallDepth2.position.z = 0 //reset position of origin to zero as per Grok's advice - means not scaled by disproportionate amount to one side
-  //wallWidth1.position.z = (wallDepth1.geometry.parameters.depth / 2) * (1-wallDepth1.scale.z)
-  //wallWidth2.position.z = wallWidth1.position.z + (wallDepth1.geometry.parameters.depth - wallWidth2.geometry.parameters.depth) * wallDepth1.scale.z
   wallWidth1.position.z = - 1 * ((wallDepth1.geometry.parameters.depth / 2) * wallDepth1.scale.z) + wallWidth1.geometry.parameters.depth / 2
   wallWidth2.position.z = (wallDepth1.geometry.parameters.depth / 2) * wallDepth1.scale.z - wallWidth2.geometry.parameters.depth / 2
-  //0 adjustment where wallDepth1.scale = 1. As effectively just takes starting positions (0 and 10)
-  //when 
+
+  //scaling roof
+
   renderer.render(scene, camera);
 
 }
