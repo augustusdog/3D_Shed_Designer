@@ -5,9 +5,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import * as dat from 'dat.gui'
-import { sortInstancedMesh } from 'three/examples/jsm/utils/SceneUtils.js';
-import { depth, ExtrudeGeometry, Triangle, Vector3 } from 'three/webgpu';
-import { mx_bilerp_0 } from 'three/src/nodes/materialx/lib/mx_noise.js';
 
 const scene = new THREE.Scene();
 
@@ -32,12 +29,22 @@ scene.add(new THREE.GridHelper(100,20))
 const gardenTexture = new THREE.TextureLoader().load('garden.jpg');
 scene.background = gardenTexture;
 const brickTexture = new THREE.TextureLoader().load('brick.jpg');
-const brickMaterial = new THREE.MeshBasicMaterial({map: brickTexture});
+const brickMaterial = new THREE.MeshBasicMaterial({color: 0x000000, map: brickTexture});
+const tilesTexture = new THREE.TextureLoader().load("tiles.jpg")
+const tilesMaterial = new THREE.MeshBasicMaterial({ map: tilesTexture});
+const blackMaterial = new THREE.MeshBasicMaterial({ color: 0x000000});
+blackMaterial.side = THREE.DoubleSide;
+tilesMaterial.side = THREE.DoubleSide;
 
+///////////////////////initialisation of geometries//////////////////////////////////////
+
+//CREATION OF WALLS
 //width geometries
 const wallWidthGeom = new THREE.BoxGeometry(10, 3, 1)
 const wallWidth1 = new THREE.Mesh(wallWidthGeom, brickMaterial)
 const wallWidth2 = new THREE.Mesh(wallWidthGeom, brickMaterial)
+
+console.log(wallWidth1.material.color.getHexString())
 
 wallWidth1.position.set(0,0,0)
 wallWidth2.position.set(0,0,10)
@@ -54,7 +61,8 @@ wallDepth2.position.set(0,0,0)
 
 scene.add(wallDepth1, wallDepth2)
 
-//add roof - triangular prism. for ease of UV mapping decided to build up from two rectangular slopes
+//CREATION OF ROOF
+//for ease of UV mapping decided to build up from two rectangular slopes
 
 const geometry1 = new THREE.BufferGeometry();
 const geometry2 = new THREE.BufferGeometry();
@@ -119,16 +127,11 @@ geometry3.setAttribute('position', new THREE.BufferAttribute(vertices_3, 3));
 geometry3.setIndex(indices_endBits);
 geometry3.computeVertexNormals
 
-const tilesTexture = new THREE.TextureLoader().load("tiles.jpg")
-const tilesMaterial = new THREE.MeshBasicMaterial({ map: tilesTexture});
-const blackMaterial = new THREE.MeshBasicMaterial({ color: 0x000000});
-blackMaterial.side = THREE.DoubleSide;
-tilesMaterial.side = THREE.DoubleSide;
-
 const slope1 = new THREE.Mesh(geometry1, tilesMaterial);
 const slope2 = new THREE.Mesh(geometry2, tilesMaterial);
 const endBits = new THREE.Mesh(geometry3, tilesMaterial)
 
+//DYNAMICALLY ADJUST ROOF FUNCTION
 
 function updatePrism() {
   const width = (wallWidth1.scale.x * wallWidth1.geometry.parameters.width + 2*wallDepth1.geometry.parameters.width)/2;
@@ -169,35 +172,37 @@ function updatePrism() {
 }
 scene.add(slope1, slope2, endBits);
 
-//initialiseL
+///////////////////////User interface//////////////////////////////////////
+
+//CREATION OF USER INTERFACE
 
 const gui = new dat.GUI()
-
-//changing geometry
 
 gui.add(wallWidth1.scale, "x", 0.5, 2).name('Scale Shed Width')
 gui.add(wallWidth1.scale, "y", 0.5, 2).name('Scale Shed Height')
 gui.add(wallDepth1.scale, "z", 0.5, 2).name('Scale Shed Depth')
 
-// const materialOptions = {
-//   Brick: 'brick',
-//   Black: 'black'
-// };
+const colorParams = {
+  color: '#000000' // Hex string for white, initial color
+};
 
-// function changeMaterial(){
-//   switch(settings.material){
-//     case 'brick':
-//       wallWidth1.material = wallWidth2.material = wallDepth1.material = wallDepth2.material = brickMaterial;
-//       break;
-//     case 'black':
-//       wallWidth1.material = wallWidth2.material = wallDepth1.material = wallDepth2.material = blackMaterial;
-//       break;
-//   }
-// }
+// Function to update the wall colour
+function updateColor() {
+  // Convert hex to a number for Three.js color
+  const colorValue = colorParams.color.replace('#', '0x');
+  wallWidth1.material.color.set(parseInt(colorValue, 16));
+}
 
-// gui.add(settings, 'material', materialOptions).name('Material').onChange(changeMaterial)
+// Add a color picker to the GUI
+gui.addColor(colorParams, 'color').name('Colour of Walls').onChange(updateColor);
+
+
+///////////////////////Render function//////////////////////////////////////
+//ANIMATE FUNCTION
+//////////////////
 
 function animate(){
+
   requestAnimationFrame(animate);
 
   controls.update();
@@ -208,7 +213,6 @@ function animate(){
   wallDepth2.position.x = - wallDepth1.position.x
   wallDepth1.position.z = wallDepth2.position.z = (wallWidth2.position.z / 2) //+ wallWidth1.geometry.parameters.depth/2
 
-  
   //scaling height
   wallWidth2.scale.y = wallDepth1.scale.y = wallDepth2.scale.y = wallWidth1.scale.y;
 
