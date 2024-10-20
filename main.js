@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui'
 import { sortInstancedMesh } from 'three/examples/jsm/utils/SceneUtils.js';
 import { depth, ExtrudeGeometry, Triangle, Vector3 } from 'three/webgpu';
+import { mx_bilerp_0 } from 'three/src/nodes/materialx/lib/mx_noise.js';
 
 const scene = new THREE.Scene();
 
@@ -53,43 +54,120 @@ wallDepth2.position.set(0,0,0)
 
 scene.add(wallDepth1, wallDepth2)
 
-//add roof - triangular prism
+//add roof - triangular prism. for ease of UV mapping decided to build up from two rectangular slopes
 
-const geometry = new THREE.BufferGeometry();
+const geometry1 = new THREE.BufferGeometry();
+const geometry2 = new THREE.BufferGeometry();
+const geometry3 = new THREE.BufferGeometry();
 
-const vertices = new Float32Array([
-    // Front triangle
-    -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
-    wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
-    0, wallWidth1.geometry.parameters.height+ 2, -1*(wallDepth2.geometry.parameters.depth / 2),
-    // Back triangle
-    -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
-    wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
-    0.5, wallWidth1.geometry.parameters.height+ 2, wallDepth2.geometry.parameters.depth / 2,
+const vertices_1 = new Float32Array([
+  // Slope 1
+  wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  0, wallWidth1.geometry.parameters.height+ 2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+  0, wallWidth1.geometry.parameters.height+ 2, wallDepth2.geometry.parameters.depth / 2,
 ]);
+  //Slope 2
+const vertices_2 = new Float32Array([
+  -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  0, wallWidth1.geometry.parameters.height+ 2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+  0, wallWidth1.geometry.parameters.height+ 2, wallDepth2.geometry.parameters.depth / 2,
+])
+// end bits
+const vertices_3 = new Float32Array([
+  // Front triangle
+  -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  0, wallWidth1.geometry.parameters.height+ 2, -1*(wallDepth2.geometry.parameters.depth / 2),
+  // Back triangle
+  -wallWidth1.geometry.parameters.width / 2 - wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+  wallWidth1.geometry.parameters.width / 2 + wallDepth1.geometry.parameters.width, wallWidth1.geometry.parameters.height/2, wallDepth2.geometry.parameters.depth / 2,
+  0, wallWidth1.geometry.parameters.height+ 2, wallDepth2.geometry.parameters.depth / 2,
+])
 
-// Indices for drawing order
+// Indices for drawing order for roof slope 1 and 2
 const indices = [
-    0, 1, 2,   // Front face
-    3, 5, 4,   // Back face
-    0, 3, 1,   // Bottom face
-    1, 3, 4,
-    1, 4, 2,   // Right side
-    2, 4, 5,
-    2, 5, 0,   // Left side
-    0, 5, 3    // Connect back to front
+    0, 1, 2,
+    2, 3, 1
 ];
 
-geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-geometry.setIndex(indices);
-geometry.computeVertexNormals();
+const indices_endBits = [
+  0, 1, 2,
+  3, 4, 5
+]
 
-// Follow with material and mesh creation
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const prism = new THREE.Mesh(geometry, material);
+// UV coordinate mapping for roof slope 1 and 2
+const uvs = new Float32Array([
+  1, 0,
+  1, 1,
+  0, 0,
+  0, 1
+])
 
-scene.add(prism);
+geometry1.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+geometry1.setAttribute('position', new THREE.BufferAttribute(vertices_1, 3));
+geometry1.setIndex(indices);
+geometry1.computeVertexNormals();
 
+geometry2.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+geometry2.setAttribute('position', new THREE.BufferAttribute(vertices_2, 3));
+geometry2.setIndex(indices);
+geometry2.computeVertexNormals();
+
+geometry3.setAttribute('position', new THREE.BufferAttribute(vertices_3, 3));
+geometry3.setIndex(indices_endBits);
+geometry3.computeVertexNormals
+
+const tilesTexture = new THREE.TextureLoader().load("tiles.jpg")
+const tilesMaterial = new THREE.MeshBasicMaterial({ map: tilesTexture});
+const blackMaterial = new THREE.MeshBasicMaterial({ color: 0x000000});
+blackMaterial.side = THREE.DoubleSide;
+tilesMaterial.side = THREE.DoubleSide;
+
+const slope1 = new THREE.Mesh(geometry1, tilesMaterial);
+const slope2 = new THREE.Mesh(geometry2, tilesMaterial);
+const endBits = new THREE.Mesh(geometry3, tilesMaterial)
+
+
+function updatePrism() {
+  const width = (wallWidth1.scale.x * wallWidth1.geometry.parameters.width + 2*wallDepth1.geometry.parameters.width)/2;
+  const height = (wallWidth1.scale.y * wallWidth1.geometry.parameters.height)/2;
+  const depth = (wallDepth2.scale.z * wallDepth2.geometry.parameters.depth)/2;
+
+  // Update vertex positions here using `width`, `height`, and `depth`.
+  // For example, for the first vertex of the front triangle:
+
+  //roof slope 1
+  geometry1.attributes.position.setXYZ(0, width, height, -depth); //vertex 2
+  geometry1.attributes.position.setXYZ(1, 0, (2*height)+1, -depth) //vertex 3
+  geometry1.attributes.position.setXYZ(2, width, height, depth); //vertex 2
+  geometry1.attributes.position.setXYZ(3, 0, (2*height)+1, depth) //vertex 3
+
+  geometry1.attributes.position.needsUpdate = true;
+  geometry1.computeVertexNormals();
+
+  //roof slope 2
+  geometry2.attributes.position.setXYZ(0, -width, height, -depth); //vertex 2
+  geometry2.attributes.position.setXYZ(1, 0, (2*height)+1, -depth) //vertex 3
+  geometry2.attributes.position.setXYZ(2, -width, height, depth); //vertex 2
+  geometry2.attributes.position.setXYZ(3, 0, (2*height)+1, depth) //vertex 3
+
+  geometry2.attributes.position.needsUpdate = true;
+  geometry2.computeVertexNormals();
+
+  //endBits
+  geometry3.attributes.position.setXYZ(0, width, height, -depth);
+  geometry3.attributes.position.setXYZ(1, -width, height, -depth);
+  geometry3.attributes.position.setXYZ(2, 0, (2*height)+1, -depth);
+  geometry3.attributes.position.setXYZ(3, width, height, depth);
+  geometry3.attributes.position.setXYZ(4, -width, height, depth);
+  geometry3.attributes.position.setXYZ(5, 0, (2*height)+1, depth);
+
+  geometry3.attributes.position.needsUpdate = true;
+  geometry3.computeVertexNormals();
+}
+scene.add(slope1, slope2, endBits);
 
 //initialiseL
 
@@ -97,9 +175,27 @@ const gui = new dat.GUI()
 
 //changing geometry
 
-gui.add(wallWidth1.scale, "x", 0, 2).name('Scale Shed Width')
-gui.add(wallWidth1.scale, "y", 0, 2).name('Scale Shed Height')
-gui.add(wallDepth1.scale, "z", 0, 2).name('Scale Shed Depth')
+gui.add(wallWidth1.scale, "x", 0.5, 2).name('Scale Shed Width')
+gui.add(wallWidth1.scale, "y", 0.5, 2).name('Scale Shed Height')
+gui.add(wallDepth1.scale, "z", 0.5, 2).name('Scale Shed Depth')
+
+// const materialOptions = {
+//   Brick: 'brick',
+//   Black: 'black'
+// };
+
+// function changeMaterial(){
+//   switch(settings.material){
+//     case 'brick':
+//       wallWidth1.material = wallWidth2.material = wallDepth1.material = wallDepth2.material = brickMaterial;
+//       break;
+//     case 'black':
+//       wallWidth1.material = wallWidth2.material = wallDepth1.material = wallDepth2.material = blackMaterial;
+//       break;
+//   }
+// }
+
+// gui.add(settings, 'material', materialOptions).name('Material').onChange(changeMaterial)
 
 function animate(){
   requestAnimationFrame(animate);
@@ -123,6 +219,7 @@ function animate(){
   wallWidth2.position.z = (wallDepth1.geometry.parameters.depth / 2) * wallDepth1.scale.z - wallWidth2.geometry.parameters.depth / 2
 
   //scaling roof
+  updatePrism()
 
   renderer.render(scene, camera);
 
