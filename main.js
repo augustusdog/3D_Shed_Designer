@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { WebGPURenderer } from 'three/webgpu';
 
 import { OrbitControls } from 'OrbitControls';
 
 import * as dat from 'dat.gui'
+import { depth } from 'three/webgpu';
 
 const scene = new THREE.Scene();
 
@@ -31,6 +33,8 @@ const brickMaterial = new THREE.MeshBasicMaterial({color: 0x000000, map: brickTe
 const tilesTexture = new THREE.TextureLoader().load("tiles.jpg")
 const tilesMaterial = new THREE.MeshBasicMaterial({ map: tilesTexture});
 const blackMaterial = new THREE.MeshBasicMaterial({ color: 0x000000});
+const windowTexture = new THREE.TextureLoader().load('window.jpg')
+const windowMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, map: windowTexture})
 blackMaterial.side = THREE.DoubleSide;
 tilesMaterial.side = THREE.DoubleSide;
 
@@ -170,15 +174,70 @@ function updatePrism() {
 }
 scene.add(slope1, slope2, endBits);
 
+//ADD WINDOWS
+const window_x = 3
+const window_z = 0.1
+
+const windowGeometry = new THREE.BoxGeometry(window_x,2,window_z)
+const squareWindow = new THREE.Mesh(windowGeometry, windowMaterial)
+
+console.log(squareWindow.scale.z)
+
+squareWindow.position.set(0,0, wallDepth1.geometry.parameters.depth/2)
+
+scene.add(squareWindow)
+
+function setWindowLocation(value){
+
+  if (value <= wallWidth1.geometry.parameters.width/2 - squareWindow.geometry.parameters.width/2){ //prevents half window being out of shed
+
+    squareWindow.scale.x = 1
+    squareWindow.scale.z = 1
+
+    squareWindow.position.x = value
+    squareWindow.position.z = wallWidth2.position.z + wallWidth2.geometry.parameters.depth/2
+
+    console.log("x size ", squareWindow.geometry.parameters.width)
+    console.log("z size ", squareWindow.geometry.parameters.depth)
+
+  } else if (value > wallWidth1.geometry.parameters.width/2 - squareWindow.geometry.parameters.width/2 && value <= ((wallWidth1.geometry.parameters.width/2 - window_x/2) + (wallDepth1.geometry.parameters.depth - 2*wallWidth1.geometry.parameters.depth - window_x))) {
+
+    squareWindow.scale.x = 1/30
+    squareWindow.scale.z = 30
+
+    squareWindow.position.x = wallWidth1.geometry.parameters.width/2 + wallDepth1.geometry.parameters.width
+    squareWindow.position.z = wallWidth2.position.z - wallWidth2.geometry.parameters.depth/2 - window_x/2 - (value-(wallWidth1.geometry.parameters.width/2 - window_x/2))
+
+  } else if (value > ((wallWidth1.geometry.parameters.width/2 - window_x/2) + (wallDepth1.geometry.parameters.depth - 2*wallWidth1.geometry.parameters.depth - window_x)) && value <= wallWidth1.geometry.parameters.width/2 + wallDepth1.geometry.parameters.depth + wallWidth1.geometry.parameters.width + wallDepth1.geometry.parameters.width*2){
+
+    squareWindow.scale.x = 1
+    squareWindow.scale.z = 1
+
+    squareWindow.position.x = 0
+    squareWindow.position.z = wallWidth1.position.z - wallWidth1.geometry.parameters.depth/2
+
+  } else if (value > wallWidth1.geometry.parameters.width/2 + wallDepth1.geometry.parameters.depth + wallWidth1.geometry.parameters.width + wallDepth1.geometry.parameters.width*2) {
+
+    squareWindow.scale.x = 1/30
+    squareWindow.scale.z = 30
+
+    squareWindow.position.x = - wallWidth1.geometry.parameters.width/2 - wallDepth1.geometry.parameters.width
+    squareWindow.position.z = wallWidth1.position.z + (value - (wallWidth1.geometry.parameters.width/2 + wallDepth1.geometry.parameters.depth + wallWidth2.geometry.parameters.width))
+  }
+}
+
 ///////////////////////User interface//////////////////////////////////////
 
 //CREATION OF USER INTERFACE
 
 const gui = new dat.GUI()
 
+let interimVariable = 0
+
 gui.add(wallWidth1.scale, "x", 0.5, 2).name('Scale Shed Width')
 gui.add(wallWidth1.scale, "y", 0.5, 2).name('Scale Shed Height')
 gui.add(wallDepth1.scale, "z", 0.5, 2).name('Scale Shed Depth')
+gui.add({InterimVar: interimVariable}, "InterimVar", 0, (2*wallWidth1.geometry.parameters.width + 2*wallDepth1.geometry.parameters.depth - 4*wallWidth1.geometry.parameters.depth),0.1).name('Window Location').onChange(setWindowLocation)
 
 const colorParams = {
   color: '#000000' // Hex string for white, initial color
